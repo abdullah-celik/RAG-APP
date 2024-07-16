@@ -1,73 +1,71 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,
- initial-scale=1.0">
-    <title>Customizable Chatbot</title>
-    <style>
-       css
-body {
-    background-color: black;
-    color: white;
-    font-family: sans-serif;
-}
-#user-input {
-    width: 80%;
-    height: 30px; 
-    padding: 5px;
-    position: fixed;
-    bottom: 0;
-    left: 10%; 
-    background-color: white;
-    color: black;
-}
-#file-upload {
-    position: fixed;
-    bottom: 10px; 
-    left: 100%;
-}
-#file-upload + label { 
-    color: rgb(0, 0, 0);
-    cursor: pointer;
-}
-
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ask Llama</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <h1>Chatbot</h1>
-    <div id="chat-display"></div>
-    <input type="file" id="file-upload" hidden accept=".pdf"> 
-    <label for="file-upload">Insert PDF File</label>
-    <textarea id="user-input" placeholder="Type your message..."></textarea> 
+    <h1>Ask Llama</h1>
+
+    <!-- Form to upload PDF -->
+    <form id="upload-form" enctype="multipart/form-data">
+        <label for="file">Upload PDF:</label>
+        <input type="file" id="file" name="file" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Form to ask a question -->
+    <form id="ask-form">
+        <label for="question">Ask a question:</label>
+        <input type="text" id="question" name="question" required>
+        <button type="submit">Ask</button>
+    </form>
+
+    <!-- Area to display the answer -->
+    <div id="answer"></div>
 
     <script>
+        $(document).ready(function() {
+            // Handle PDF upload
+            $('#upload-form').on('submit', function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
 
-        const chatDisplay = document.getElementById('chat-display');
-        const userInput = document.getElementById('user-input');
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        alert('PDF uploaded successfully');
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error uploading PDF: ' + xhr.responseText);
+                    }
+                });
+            });
 
-        userInput.addEventListener('keydown', function(event) {
-            if (event.key === "Enter") {
-                event.preventDefault(); // Prevent default newline behavior
-                sendMessage();
-            }
+            // Handle question submission
+            $('#ask-form').on('submit', function(e) {
+                e.preventDefault();
+                var question = $('#question').val();
+
+                $.ajax({
+                    url: '/ask',
+                    type: 'POST',
+                    data: { question: question },
+                    success: function(response) {
+                        $('#answer').html('<p>Answer: ' + response.answer + '</p>');
+                    },
+                    error: function(xhr, status, error) {
+                        $('#answer').html('<p>Error: ' + xhr.responseText + '</p>');
+                    }
+                });
+            });
         });
-
-        function sendMessage() {
-            const message = userInput.value.trim(); 
-            if (message !== "") {
-                displayMessage("You: " + message);
-                userInput.value = ""; // Clear the input field
-            }
-        }
-
-        function displayMessage(message) {
-            const messageElement = document.createElement('p');
-            messageElement.textContent = message;
-            chatDisplay.appendChild(messageElement);
-            chatDisplay.scrollTop = chatDisplay.scrollHeight; // Scroll to bottom
-        }
     </script>
 </body>
 </html>
