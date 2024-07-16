@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,
+ initial-scale=1.0">
+    <title>Customizable Chatbot</title>
+    <style>
+       css
+body {
+    background-color: black;
+    color: white;
+    font-family: sans-serif;
+}
+#user-input {
+    width: 80%;
+    height: 30px; 
+    padding: 5px;
+    position: fixed;
+    bottom: 0;
+    left: 10%; 
+    background-color: white;
+    color: black;
+}
+#file-upload {
+    position: fixed;
+    bottom: 10px; 
+    left: 100%;
+}
+#file-upload + label { 
+    color: rgb(0, 0, 0);
+    cursor: pointer;
+}
+
+    </style>
+</head>
+<body>
+    <h1>Chatbot</h1>
+    <div id="chat-display"></div>
+    <input type="file" id="file-upload" hidden accept=".pdf"> 
+    <label for="file-upload">Insert PDF File</label>
+    <textarea id="user-input" placeholder="Type your message..."></textarea> 
+
+    <script>
+
+        const chatDisplay = document.getElementById('chat-display');
+        const userInput = document.getElementById('user-input');
+
+        userInput.addEventListener('keydown', function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault(); // Prevent default newline behavior
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const message = userInput.value.trim(); 
+            if (message !== "") {
+                displayMessage("You: " + message);
+                userInput.value = ""; // Clear the input field
+            }
+        }
+
+        function displayMessage(message) {
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            chatDisplay.appendChild(messageElement);
+            chatDisplay.scrollTop = chatDisplay.scrollHeight; // Scroll to bottom
+        }
+    </script>
+</body>
+</html>
