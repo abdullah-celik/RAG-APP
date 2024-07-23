@@ -1,14 +1,6 @@
 import os
-
-from flask import Flask, send_file
-
-app = Flask(__name__)
-
-
-import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-import tensorflow as tf
-from flask import Flask, send_file
+from flask import Flask, request, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
 from langchain_community.llms import Ollama
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
@@ -17,81 +9,79 @@ from langchain_core.output_parsers import StrOutputParser
 from operator import itemgetter
 from langchain.prompts import PromptTemplate
 
-# RAG Configuration
+app = Flask(__name__)
+
+# Initialize Ollama model and other necessary components
 MODEL = "llama3"
 model = Ollama(model=MODEL)
 embeddings = OllamaEmbeddings(model=MODEL)
 parser = StrOutputParser()
 
-# Flask App
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'  # Folder to store uploaded files
+UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Create the folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Langchain Chain (will be initialized after PDF upload)
-chain = None 
+chain = None  # Langchain Chain (will be initialized after PDF upload)
 
+# Serve static files from the 'src' directory
 @app.route("/")
 def index():
-    return send_file('src/index.html')
+    return send_from_directory('src', 'index.html')
 
-# Endpoint to handle PDF upload
+# Endpoint to handle PDF upload and initialize Langchain Chain
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
     global chain
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
+    
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
+    
     if file:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+        
+        # Initialize Langchain Chain after PDF upload
+        loader = PyPDFLoader(filepath)
+        pages = loader.load()
 
-    loader = PyPDFLoader(filepath)
-    pages = loader.load_
+        vectorstore = DocArrayInMemorySearch.from_documents(pages, embeddings)
+        retriever = vectorstore.as_retriever()
 
-    vectorstore = DocArrayInMemorySearch.from_documents(pages, embeddings)
-    retriever = vectorstore.as_retriever()
-        # Load the uploaded document and create the chain
+        # Prompt Template for question answering
+        template = """
+        Answer the question based on the Textbook below. If you can't 
+        answer the question, reply "I don't know".
 
-    # Prompt Template
-    template = """
-    Answer the question based on the Textbook below. If you can't 
-    answer the question, reply "I don't know".
+        Context: {context}
 
-    Context: {context}
+        Question: {question}
+        """
+        prompt = PromptTemplate.from_template(template)
 
-    Question: {question}
-    """
-    prompt = PromptTemplate.from_template(template)
+        # Define Langchain Chain
+        chain = (
+            {
+                "context": itemgetter("question") | retriever,
+                "question": itemgetter("question"),
+            }
+            | prompt
+            | model
+            | parser
+        )
 
-    # Langchain Chain
-    chain = (
-        {
-            "context": itemgetter("question") | retriever,
-            "question": itemgetter("question"),
-        }
-        | prompt
-        | model
-        | parser
-    )
+        return jsonify({"message": "File uploaded successfully and chain initialized."}), 200
 
-    @app.route("/")
-    def index():
-        return send_file('src/index.html')
+# Endpoint to handle questions and interact with the Langchain Chain
+@app.route("/ask", methods=["POST"])
+def ask():
+    question = request.json.get("question")
+    response = jsonify({"response here"})
+def main():
+    app.run(port=int(os.environ.get('PORT', 5000)))
 
-    # Endpoint to handle questions (you'll need to adjust this based on how you send questions from your frontend)
-    @app.route("/ask", methods=["POST"])
-    def ask():
-        question = request.form.get("question")  # Assuming question is sent in a form
-        response = chain.run(question)
-        return jsonify({"answer": response}) 
-
-    def main():
-        app.run(port=int(os.environ.get('PORT', 80)))
-
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    main()

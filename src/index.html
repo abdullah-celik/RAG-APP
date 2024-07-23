@@ -3,68 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ask Llama</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>Langchain Chat Interface</title>
+    <style>
+        /* Add your CSS styles here */
+        .chat-container {
+            height: 400px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            max-width: 70%;
+        }
+        .user-message {
+            background-color: #e6f7ff;
+            text-align: right;
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: #f0f0f5;
+            text-align: left;
+            align-self: flex-start;
+        }
+        #message-form {
+            display: flex;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>Ask Llama</h1>
-
-    <!-- Form to upload PDF -->
+    <h1>Langchain Chat Interface</h1>
+    
+    <!-- Form to upload PDF file -->
     <form id="upload-form" enctype="multipart/form-data">
-        <label for="file">Upload PDF:</label>
-        <input type="file" id="file" name="file" required>
-        <button type="submit">Upload</button>
+        <input type="file" name="file" id="file-input" accept=".pdf" required>
+        <button type="submit">Upload PDF</button>
     </form>
 
-    <!-- Form to ask a question -->
-    <form id="ask-form">
-        <label for="question">Ask a question:</label>
-        <input type="text" id="question" name="question" required>
-        <button type="submit">Ask</button>
+    <!-- Chat container to display messages -->
+    <div id="chat-container" class="chat-container">
+        <!-- Messages will be dynamically added here -->
+    </div>
+
+    <!-- Form to send messages -->
+    <form id="message-form">
+        <input type="text" name="message" id="message-input" placeholder="Type your message..." required>
+        <button type="submit">Send</button>
     </form>
 
-    <!-- Area to display the answer -->
-    <div id="answer"></div>
-
+    <!-- Script to handle form submissions and chat interaction -->
     <script>
-        $(document).ready(function() {
-            // Handle PDF upload
-            $('#upload-form').on('submit', function(e) {
-                e.preventDefault();
-                var formData = new FormData(this);
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadForm = document.getElementById('upload-form');
+            const messageForm = document.getElementById('message-form');
+            const chatContainer = document.getElementById('chat-container');
 
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function(response) {
-                        alert('PDF uploaded successfully');
-                    },
-                    error: function(xhr, status, error) {
-                        alert('Error uploading PDF: ' + xhr.responseText);
-                    }
+            uploadForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(uploadForm);
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const message = data.message || 'File uploaded successfully.';
+                    displayMessage(message, 'bot');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayMessage('Error uploading file.', 'bot');
                 });
             });
 
-            // Handle question submission
-            $('#ask-form').on('submit', function(e) {
-                e.preventDefault();
-                var question = $('#question').val();
+            messageForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const messageInput = document.getElementById('message-input');
+                const message = messageInput.value.trim();
+                
+                if (message !== '') {
+                    displayMessage(message, 'user');
+                    messageInput.value = '';
 
-                $.ajax({
-                    url: '/ask',
-                    type: 'POST',
-                    data: { question: question },
-                    success: function(response) {
-                        $('#answer').html('<p>Answer: ' + response.answer + '</p>');
-                    },
-                    error: function(xhr, status, error) {
-                        $('#answer').html('<p>Error: ' + xhr.responseText + '</p>');
-                    }
-                });
+                    fetch('/ask', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ question: message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        const answer = data.answer || 'No response.';
+                        displayMessage(answer, 'bot');
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        displayMessage('Error getting response.', 'bot');
+                    });
+                }
             });
+
+            function displayMessage(message, sender) {
+                const messageClass = sender === 'user' ? 'user-message' : 'bot-message';
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', messageClass);
+                messageElement.innerText = message;
+                chatContainer.appendChild(messageElement);
+                // Scroll to bottom of chat container
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
         });
     </script>
 </body>
